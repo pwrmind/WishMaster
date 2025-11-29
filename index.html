@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wishlist App - Подаркус</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div id="app" class="min-h-screen">
+        <!-- Компонент авторизации -->
+        <div v-if="state.currentView === 'auth'" class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+            <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-lg">
+                <div>
+                    <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                        <i class="fas fa-gift text-purple-600 mr-3"></i>
+                        Подаркус
+                    </h2>
+                    <p class="mt-2 text-center text-sm text-gray-600">
+                        Создавайте списки желаний и делитесь с друзьями
+                    </p>
+                </div>
+                
+                <!-- Форма регистрации -->
+                <div v-if="!showLogin" class="space-y-6">
+                    <div>
+                        <label for="reg-name" class="block text-sm font-medium text-gray-700">Имя</label>
+                        <input v-model="regData.name" id="reg-name" type="text" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label for="reg-email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input v-model="regData.email" id="reg-email" type="email" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label for="reg-password" class="block text-sm font-medium text-gray-700">Пароль</label>
+                        <input v-model="regData.password" id="reg-password" type="password" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <button @click="handleRegister" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                        Зарегистрироваться
+                    </button>
+                    <p class="text-center">
+                        <button @click="showLogin = true" class="text-purple-600 hover:text-purple-500">
+                            Уже есть аккаунт? Войти
+                        </button>
+                    </p>
+                </div>
+                
+                <!-- Форма входа -->
+                <div v-else class="space-y-6">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input v-model="loginData.email" id="login-email" type="email" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-gray-700">Пароль</label>
+                        <input v-model="loginData.password" id="login-password" type="password" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <button @click="handleLogin" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                        Войти
+                    </button>
+                    <p class="text-center">
+                        <button @click="showLogin = false" class="text-purple-600 hover:text-purple-500">
+                            Нет аккаунта? Зарегистрироваться
+                        </button>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Основной интерфейс -->
+        <div v-else-if="state.currentView === 'dashboard'" class="min-h-screen">
+            <!-- Шапка -->
+            <header class="bg-white shadow-sm border-b">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex justify-between items-center h-16">
+                        <div class="flex items-center">
+                            <i class="fas fa-gift text-purple-600 text-2xl mr-3"></i>
+                            <h1 class="text-xl font-bold text-gray-900">Подаркус</h1>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <span class="text-sm text-gray-700">Привет, {{ state.currentUser.name }}!</span>
+                            <button @click="logoutUser" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                <div class="px-4 py-6 sm:px-0">
+                    <!-- Навигация -->
+                    <div class="border-b border-gray-200 mb-6">
+                        <nav class="-mb-px flex space-x-8">
+                            <button @click="activeTab = 'wishlists'" :class="['py-2 px-1 border-b-2 font-medium text-sm', activeTab === 'wishlists' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300']">
+                                Мои вишлисты
+                            </button>
+                            <button @click="activeTab = 'friends'" :class="['py-2 px-1 border-b-2 font-medium text-sm', activeTab === 'friends' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300']">
+                                Друзья
+                            </button>
+                        </nav>
+                    </div>
+
+                    <!-- Управление вишлистами -->
+                    <div v-if="activeTab === 'wishlists'" class="space-y-6">
+                        <!-- Создание вишлиста -->
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h3 class="text-lg font-medium mb-4">Создать новый вишлист</h3>
+                            <div class="flex space-x-4">
+                                <input v-model="newWishlist.title" @keyup.enter="handleCreateWishlist" placeholder="Название вишлиста" class="flex-1 border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <button @click="handleCreateWishlist" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+                                    Создать
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Список вишлистов -->
+                        <div v-for="wishlist in state.wishlists" :key="wishlist.id" class="bg-white p-6 rounded-lg shadow">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-xl font-semibold">{{ wishlist.title }}</h3>
+                                    <p class="text-gray-600">{{ wishlist.description }}</p>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button @click="shareWishlist(wishlist.id)" class="text-blue-600 hover:text-blue-800" title="Поделиться">
+                                        <i class="fas fa-share-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Добавление подарка -->
+                            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                                <h4 class="font-medium mb-3">Добавить подарок</h4>
+                                <div class="space-y-3">
+                                    <input v-model="newGifts[wishlist.id].name" placeholder="Название подарка" class="w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <input v-model="newGifts[wishlist.id].link" placeholder="Ссылка на товар (необязательно)" class="w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <input v-model="newGifts[wishlist.id].price" placeholder="Цена (необязательно)" class="w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <button @click="handleAddGift(wishlist.id)" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                                        Добавить подарок
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Список подарков -->
+                            <div class="space-y-3">
+                                <div v-for="gift in getWishlistGifts(wishlist.id)" :key="gift.id" class="flex items-center justify-between p-3 border rounded-lg">
+                                    <div class="flex-1">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="font-medium">{{ gift.name }}</span>
+                                            <span v-if="gift.price" class="text-green-600 font-semibold">{{ gift.price }} ₽</span>
+                                            <span v-if="gift.status === 'reserved'" class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
+                                                Забронировано
+                                            </span>
+                                        </div>
+                                        <div v-if="gift.link" class="text-sm">
+                                            <a :href="gift.link" target="_blank" class="text-blue-600 hover:text-blue-800 break-all">{{ gift.link }}</a>
+                                        </div>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button @click="deleteGift(gift.id)" class="text-red-600 hover:text-red-800" title="Удалить">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Управление друзьями -->
+                    <div v-if="activeTab === 'friends'" class="space-y-6">
+                        <!-- Добавление друга -->
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h3 class="text-lg font-medium mb-4">Добавить друга</h3>
+                            <div class="flex space-x-4">
+                                <input v-model="newFriendEmail" @keyup.enter="handleAddFriend" placeholder="Email друга" class="flex-1 border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <button @click="handleAddFriend" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+                                    Добавить
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Список друзей -->
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h3 class="text-lg font-medium mb-4">Мои друзья</h3>
+                            <div class="space-y-3">
+                                <div v-for="friend in getFriendUsers()" :key="friend.id" class="flex items-center justify-between p-3 border rounded-lg">
+                                    <div>
+                                        <span class="font-medium">{{ friend.name }}</span>
+                                        <span class="text-gray-600 ml-2">({{ friend.email }})</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Публичный просмотр -->
+        <div v-else-if="state.currentView === 'public'" class="min-h-screen bg-gray-50 py-8">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="bg-purple-600 px-6 py-4">
+                        <h1 class="text-2xl font-bold text-white">
+                            <i class="fas fa-gift mr-3"></i>
+                            {{ state.sharedWishlist.title }}
+                        </h1>
+                        <p class="text-purple-200 mt-1">{{ state.sharedWishlist.description }}</p>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="space-y-4">
+                            <div v-for="gift in state.sharedWishlist.gifts" :key="gift.id" class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <h3 class="text-lg font-semibold text-gray-900">{{ gift.name }}</h3>
+                                        <div v-if="gift.price" class="text-green-600 font-medium mt-1">
+                                            {{ gift.price }} ₽
+                                        </div>
+                                        <div v-if="gift.link" class="mt-2">
+                                            <a :href="gift.link" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm break-all">
+                                                <i class="fas fa-external-link-alt mr-1"></i>
+                                                {{ gift.link }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="ml-4">
+                                        <button 
+                                            v-if="gift.status === 'available'" 
+                                            @click="handleReserveGift(gift.id)"
+                                            class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                                        >
+                                            <i class="fas fa-gift mr-2"></i>
+                                            Забронировать
+                                        </button>
+                                        <div v-else class="bg-yellow-100 text-yellow-800 px-3 py-2 rounded-lg text-sm">
+                                            <i class="fas fa-clock mr-1"></i>
+                                            Уже забронировано
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-8 text-center">
+                            <button @click="state.currentView = 'auth'" class="text-purple-600 hover:text-purple-800 font-medium">
+                                <i class="fas fa-arrow-left mr-2"></i>
+                                Вернуться назад
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const { createApp, ref, computed, reactive } = Vue;
+
+    const storageService = {
+        save(key, data) {
+            localStorage.setItem(key, JSON.stringify(data));
+        },
+        load(key) {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        },
+        remove(key) {
+            localStorage.removeItem(key);
+        }
+    };
+
+    createApp({
+        setup() {
+            const state = reactive({
+                currentUser: null,
+                isAuthenticated: false,
+                currentView: 'auth',
+                users: storageService.load('wishlist_users') || [],
+                friends: [],
+                wishlists: [],
+                currentWishlist: null,
+                sharedWishlist: null
+            });
+
+            // Локальные состояния для форм
+            const showLogin = ref(true);
+            const activeTab = ref('wishlists');
+            const regData = reactive({ name: '', email: '', password: '' });
+            const loginData = reactive({ email: '', password: '' });
+            const newFriendEmail = ref('');
+            const newWishlist = reactive({ title: '' });
+            const newGifts = ref({});
+
+            // Инициализация newGifts для каждого вишлиста
+            const initializeNewGifts = () => {
+                state.wishlists.forEach(wishlist => {
+                    if (!newGifts.value[wishlist.id]) {
+                        newGifts.value[wishlist.id] = { name: '', link: '', price: '' };
+                    }
+                });
+            };
+
+            // Методы аутентификации
+            const registerUser = (email, name, password) => {
+                const existingUser = state.users.find(user => user.email === email);
+                if (existingUser) {
+                    alert('Пользователь с таким email уже существует');
+                    return false;
+                }
+                
+                const newUser = {
+                    id: Date.now().toString(),
+                    email,
+                    name,
+                    password,
+                    createdAt: new Date().toISOString()
+                };
+                
+                state.users.push(newUser);
+                storageService.save('wishlist_users', state.users);
+                
+                state.currentUser = newUser;
+                state.isAuthenticated = true;
+                state.currentView = 'dashboard';
+                loadUserData();
+                return true;
+            };
+
+            const loginUser = (email, password) => {
+                const user = state.users.find(u => u.email === email && u.password === password);
+                if (user) {
+                    state.currentUser = user;
+                    state.isAuthenticated = true;
+                    state.currentView = 'dashboard';
+                    loadUserData();
+                    return true;
+                }
+                alert('Неверный email или пароль');
+                return false;
+            };
+
+            const logoutUser = () => {
+                state.currentUser = null;
+                state.isAuthenticated = false;
+                state.currentView = 'auth';
+                state.friends = [];
+                state.wishlists = [];
+                regData.name = '';
+                regData.email = '';
+                regData.password = '';
+                loginData.email = '';
+                loginData.password = '';
+            };
+
+            const loadUserData = () => {
+                if (!state.currentUser) return;
+                
+                const allFriends = storageService.load('wishlist_friends') || [];
+                state.friends = allFriends.filter(f => 
+                    f.userId === state.currentUser.id || f.friendId === state.currentUser.id
+                );
+                
+                const allWishlists = storageService.load('wishlist_wishlists') || [];
+                state.wishlists = allWishlists.filter(w => w.ownerId === state.currentUser.id);
+                
+                initializeNewGifts();
+            };
+
+            // Методы управления друзьями
+            const addFriend = (friendEmail) => {
+                const friendUser = state.users.find(u => u.email === friendEmail);
+                if (!friendUser) {
+                    alert('Пользователь с таким email не найден');
+                    return false;
+                }
+                
+                if (friendUser.id === state.currentUser.id) {
+                    alert('Нельзя добавить самого себя в друзья');
+                    return false;
+                }
+                
+                const existingFriend = state.friends.find(f => 
+                    (f.userId === state.currentUser.id && f.friendId === friendUser.id) ||
+                    (f.userId === friendUser.id && f.friendId === state.currentUser.id)
+                );
+                
+                if (existingFriend) {
+                    alert('Этот пользователь уже у вас в друзьях');
+                    return false;
+                }
+                
+                const newFriend = {
+                    id: Date.now().toString(),
+                    userId: state.currentUser.id,
+                    friendId: friendUser.id,
+                    status: 'confirmed',
+                    createdAt: new Date().toISOString()
+                };
+                
+                state.friends.push(newFriend);
+                
+                const allFriends = storageService.load('wishlist_friends') || [];
+                allFriends.push(newFriend);
+                storageService.save('wishlist_friends', allFriends);
+                
+                return true;
+            };
+
+            const getFriendUsers = () => {
+                return state.friends.map(friendship => {
+                    const friendId = friendship.userId === state.currentUser.id ? friendship.friendId : friendship.userId;
+                    return state.users.find(user => user.id === friendId);
+                }).filter(Boolean);
+            };
+
+            // Методы управления вишлистами
+            const createWishlist = (title, description = '') => {
+                const newWishlist = {
+                    id: Date.now().toString(),
+                    ownerId: state.currentUser.id,
+                    title,
+                    description,
+                    publicLink: generateShareId(),
+                    createdAt: new Date().toISOString(),
+                    isActive: true
+                };
+                
+                state.wishlists.push(newWishlist);
+                newGifts.value[newWishlist.id] = { name: '', link: '', price: '' };
+                
+                const allWishlists = storageService.load('wishlist_wishlists') || [];
+                allWishlists.push(newWishlist);
+                storageService.save('wishlist_wishlists', allWishlists);
+                
+                return newWishlist;
+            };
+
+            const generateShareId = () => {
+                return 'wish_' + Math.random().toString(36).substr(2, 9);
+            };
+
+            // Методы управления подарками
+            const addGift = (wishlistId, giftData) => {
+                const newGift = {
+                    id: Date.now().toString(),
+                    wishlistId,
+                    name: giftData.name,
+                    link: giftData.link,
+                    price: giftData.price,
+                    status: 'available',
+                    createdAt: new Date().toISOString()
+                };
+                
+                const allGifts = storageService.load('wishlist_gifts') || [];
+                allGifts.push(newGift);
+                storageService.save('wishlist_gifts', allGifts);
+                
+                // Очищаем форму
+                newGifts.value[wishlistId] = { name: '', link: '', price: '' };
+                
+                return newGift;
+            };
+
+            const getWishlistGifts = (wishlistId) => {
+                const allGifts = storageService.load('wishlist_gifts') || [];
+                return allGifts.filter(gift => gift.wishlistId === wishlistId);
+            };
+
+            const deleteGift = (giftId) => {
+                let allGifts = storageService.load('wishlist_gifts') || [];
+                allGifts = allGifts.filter(gift => gift.id !== giftId);
+                storageService.save('wishlist_gifts', allGifts);
+            };
+
+            // Методы бронирования
+            const reserveGift = (giftId, reserverName = 'Аноним') => {
+                const allGifts = storageService.load('wishlist_gifts') || [];
+                const giftIndex = allGifts.findIndex(gift => gift.id === giftId);
+                
+                if (giftIndex !== -1) {
+                    allGifts[giftIndex].status = 'reserved';
+                    allGifts[giftIndex].reservedBy = reserverName;
+                    allGifts[giftIndex].reservedAt = new Date().toISOString();
+                    
+                    storageService.save('wishlist_gifts', allGifts);
+                    return true;
+                }
+                return false;
+            };
+
+            // Методы публичного доступа
+            const loadSharedWishlist = (shareId) => {
+                const allWishlists = storageService.load('wishlist_wishlists') || [];
+                const wishlist = allWishlists.find(w => w.publicLink === shareId);
+                
+                if (wishlist) {
+                    const allGifts = storageService.load('wishlist_gifts') || [];
+                    const gifts = allGifts.filter(gift => gift.wishlistId === wishlist.id);
+                    
+                    state.sharedWishlist = {
+                        ...wishlist,
+                        gifts: gifts
+                    };
+                    state.currentView = 'public';
+                    return true;
+                }
+                return false;
+            };
+
+            const generateShareLink = (wishlistId) => {
+                const wishlist = state.wishlists.find(w => w.id === wishlistId);
+                if (wishlist) {
+                    return `${window.location.origin}${window.location.pathname}?share=${wishlist.publicLink}`;
+                }
+                return null;
+            };
+
+            // Обработчики UI
+            const handleRegister = () => {
+                if (regData.name && regData.email && regData.password) {
+                    if (registerUser(regData.email, regData.name, regData.password)) {
+                        regData.name = '';
+                        regData.email = '';
+                        regData.password = '';
+                    }
+                } else {
+                    alert('Заполните все поля');
+                }
+            };
+
+            const handleLogin = () => {
+                if (loginData.email && loginData.password) {
+                    loginUser(loginData.email, loginData.password);
+                } else {
+                    alert('Заполните все поля');
+                }
+            };
+
+            const handleAddFriend = () => {
+                if (newFriendEmail.value) {
+                    if (addFriend(newFriendEmail.value)) {
+                        newFriendEmail.value = '';
+                    }
+                } else {
+                    alert('Введите email друга');
+                }
+            };
+
+            const handleCreateWishlist = () => {
+                if (newWishlist.title) {
+                    createWishlist(newWishlist.title);
+                    newWishlist.title = '';
+                } else {
+                    alert('Введите название вишлиста');
+                }
+            };
+
+            const handleAddGift = (wishlistId) => {
+                const giftData = newGifts.value[wishlistId];
+                if (giftData.name) {
+                    addGift(wishlistId, giftData);
+                } else {
+                    alert('Введите название подарка');
+                }
+            };
+
+            const handleReserveGift = (giftId) => {
+                const name = prompt('Введите ваше имя (необязательно):') || 'Аноним';
+                if (reserveGift(giftId, name)) {
+                    alert('Подарок успешно забронирован!');
+                    // Обновляем данные
+                    if (state.sharedWishlist) {
+                        const allGifts = storageService.load('wishlist_gifts') || [];
+                        state.sharedWishlist.gifts = allGifts.filter(gift => 
+                            gift.wishlistId === state.sharedWishlist.id
+                        );
+                    }
+                }
+            };
+
+            const shareWishlist = (wishlistId) => {
+                const link = generateShareLink(wishlistId);
+                if (link) {
+                    navigator.clipboard.writeText(link).then(() => {
+                        alert('Ссылка скопирована в буфер обмена!\n\n' + link);
+                    });
+                }
+            };
+
+            // Обработка публичной ссылки при загрузке
+            const handlePublicLink = () => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const shareId = urlParams.get('share');
+                if (shareId) {
+                    loadSharedWishlist(shareId);
+                }
+            };
+
+            // Инициализация
+            handlePublicLink();
+
+            return {
+                state,
+                showLogin,
+                activeTab,
+                regData,
+                loginData,
+                newFriendEmail,
+                newWishlist,
+                newGifts,
+                registerUser,
+                loginUser,
+                logoutUser,
+                addFriend,
+                getFriendUsers,
+                createWishlist,
+                addGift,
+                getWishlistGifts,
+                deleteGift,
+                reserveGift,
+                handleRegister,
+                handleLogin,
+                handleAddFriend,
+                handleCreateWishlist,
+                handleAddGift,
+                handleReserveGift,
+                shareWishlist
+            };
+        }
+    }).mount('#app');
+    </script>
+</body>
+</html>
